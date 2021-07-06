@@ -8,62 +8,65 @@ import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
     private final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS user " +
-            "(id INT auto_increment PRIMARY KEY , " +
+            "(id BIGINT auto_increment PRIMARY KEY , " +
             "name VARCHAR(45) NOT NULL, " +
             "lastName VARCHAR(45) NOT NULL, " +
-            "age INT NOT NULL)";
+            "age TINYINT NOT NULL)";
     private final String SEVE_USER = "INSERT INTO user(name, lastName, age) VALUES (?, ?, ?)";
     private final String GET_ALL = "SELECT * FROM user";
     private final String REMOVE_USER = "DELETE FROM user WHERE id=?";
     private final String DROP_TABlE = "DROP TABLE IF EXISTS user";
-    private final String CLEAN_TABLE = "DELETE FROM user";
+    private final String CLEAN_TABLE = "TRUNCATE TABLE user";
 
     public UserDaoJDBCImpl() {
 
     }
 
     public void createUsersTable() {
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(CREATE_TABLE)) {
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(CREATE_TABLE)) {
             preparedStatement.executeUpdate();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     public void dropUsersTable() {
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(DROP_TABlE)) {
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(DROP_TABlE)) {
             preparedStatement.executeUpdate();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(SEVE_USER)){
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(SEVE_USER)){
             preparedStatement.setString(1, name);
             preparedStatement.setString(2, lastName);
             preparedStatement.setInt(3, age);
             preparedStatement.execute();
             System.out.println("User с именем – " + name  + " добавлен в базу данных");
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     public void removeUserById(long id) {
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(REMOVE_USER)) {
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(REMOVE_USER)) {
             preparedStatement.setLong(1, id);
             preparedStatement.executeUpdate();
-
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     public List<User> getAllUsers() {
         List<User> list = new ArrayList<>();
         ResultSet resultSet = null;
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(GET_ALL)) {
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(GET_ALL)) {
             resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 User user = new User();
@@ -73,8 +76,9 @@ public class UserDaoJDBCImpl implements UserDao {
                 user.setAge((byte) resultSet.getInt("age"));
                 list.add(user);
             }
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         } finally {
             if (resultSet != null) {
                 try {
@@ -88,10 +92,26 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void cleanUsersTable() {
-        try (Connection connection = Util.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(CLEAN_TABLE)) {
+        try (PreparedStatement preparedStatement = Util.getConnection().prepareStatement(CLEAN_TABLE)) {
             preparedStatement.executeUpdate();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            getCommitRollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void getCommitRollback() {
+        try {
+            Util.getConnection().commit();
+        } catch (SQLException ex1) {
+            try {
+                Util.getConnection().rollback();
+            } catch (SQLException ex2) {
+                System.out.println("При попытке роллбэка произошла ошибка");
+                ex2.printStackTrace();
+            }
+            System.out.println("При попытке комита произошла ошибка");
+            ex1.printStackTrace();
         }
     }
 
